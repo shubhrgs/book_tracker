@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#4a90e2">
 <title>SwanSong — Reading Tracker</title>
+<link rel="manifest" href="manifest.json">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -184,10 +186,7 @@ header { background: var(--bg); border-bottom: 0.5px solid var(--border); paddin
   </div>
   <div class="controls">
     <div class="search-wrap"><input type="text" id="searchBox" placeholder="Search by title or author…" oninput="renderAll()" /></div>
-    <div class="filter-wrap">
-      <button class="cat-btn" id="allBtn" onclick="setFilter('all', this)">All</button>
-      <div class="filter-wrap" id="filterWrap"></div>
-    </div>
+    <div class="filter-wrap" id="filterWrap"></div>
   </div>
   <div id="bookList"></div>
 </div>
@@ -462,8 +461,8 @@ const DEFAULT_CATS = [
 ];
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let cats = [];         // live category array
-let status = {};       // { "catid_idx": 0|1|2 }
+let cats = [];
+let status = {};
 let openCats = {};
 let activeFilter = 'all';
 let confirmCallback = null;
@@ -490,7 +489,6 @@ function load() {
     cats = JSON.parse(JSON.stringify(DEFAULT_CATS));
     status = {};
   }
-  // ensure all existing books have a status entry
   cats.forEach(c => c.books.forEach((b,i) => {
     if (status[c.id+'_'+i] === undefined) status[c.id+'_'+i] = 0;
   }));
@@ -595,20 +593,17 @@ function deleteBook(catId, idx) {
   if (!cat) return;
   const title = cat.books[idx].t;
   openConfirm('Delete book?', `"${title}" will be permanently removed from your list.`, () => {
-    // rebuild status keys after removal
     const newStatus = {};
     cats.forEach(c => {
       c.books.forEach((b, i) => {
-        if (c.id === catId && i === idx) return; // skip deleted
+        if (c.id === catId && i === idx) return;
         const newIdx = (c.id === catId && i > idx) ? i - 1 : i;
         newStatus[c.id+'_'+newIdx] = status[c.id+'_'+i] || 0;
       });
     });
     cat.books.splice(idx, 1);
-    // remove orphan keys for this cat beyond new length
     Object.keys(status).filter(k => k.startsWith(catId+'_')).forEach(k => delete status[k]);
     Object.assign(status, Object.fromEntries(Object.entries(newStatus).filter(([k]) => k.startsWith(catId+'_'))));
-    // preserve other cats unchanged
     cats.forEach(c => {
       if (c.id === catId) return;
       c.books.forEach((b,i) => { status[c.id+'_'+i] = newStatus[c.id+'_'+i] !== undefined ? newStatus[c.id+'_'+i] : (status[c.id+'_'+i] || 0); });
@@ -722,6 +717,7 @@ function renderAll() {
   allBtn.textContent = 'All';
   allBtn.onclick = function(){ setFilter('all', this); };
   fw.appendChild(allBtn);
+  
   cats.forEach(c => {
     const btn = document.createElement('button');
     btn.className = 'cat-btn' + (activeFilter===c.id?' active':'');
@@ -793,37 +789,22 @@ function esc(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── "All" button handler (header-level) ───────────────────────────────────────
-function setAllFilter() {
-  activeFilter = 'all';
-  renderAll();
-}
-
-// patch the static All button
-document.addEventListener('DOMContentLoaded', () => {
-  const allBtn = document.getElementById('allBtn');
-  if (allBtn) allBtn.onclick = () => setAllFilter();
-});
-
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 load();
 renderAll();
 
 // ── Github Worker Registration Fix ──────────────────────────────────────────────────
-
-  // FIXED Service Worker Registration for GitHub Pages
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      const basePath = window.location.pathname.endsWith('/') 
-        ? window.location.pathname 
-        : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-      
-      navigator.serviceWorker.register(basePath + 'sw.js')
-        .then(reg => console.log('✅ Service Worker registered'))
-        .catch(err => console.log('⚠️ SW registration failed', err));
-    });
-  }
-</script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const basePath = window.location.pathname.endsWith('/') 
+      ? window.location.pathname 
+      : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+    
+    navigator.serviceWorker.register(basePath + 'sw.js')
+      .then(reg => console.log('✅ Service Worker registered'))
+      .catch(err => console.log('⚠️ SW registration failed', err));
+  });
+}
 </script>
 </body>
 </html>
