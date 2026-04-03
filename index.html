@@ -3,488 +3,808 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>epubReader™</title>
-
-<!-- 🔧 PWA META TAGS (FIXED) -->
+<meta name="theme-color" content="#4a90e2">
+<title>SwanSong — Reading Tracker</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2563eb">
-<!-- iOS/iPadOS Home Screen Icons -->
-<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="120x120" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
-<!-- iOS: Prevent zoom on input focus -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
-
 <style>
-body{
-    margin:0;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:#f4f4f4;
-    color:#222;
-    transition:.3s;
-    -webkit-tap-highlight-color: transparent;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #e8e7e3;
+  --text: #1a1a1a; --text2: #555; --text3: #999;
+  --border: rgba(0,0,0,0.11); --border2: rgba(0,0,0,0.2);
+  --info-bg: #e6f1fb; --info-text: #185fa5; --info-border: #85b7eb;
+  --danger-bg: #fcebeb; --danger-text: #a32d2d; --danger-border: #f09595;
+  --success-bg: #E1F5EE; --success: #1D9E75;
+  --warn-bg: #FAEEDA; --warn: #EF9F27;
+  --radius-md: 8px; --radius-lg: 12px;
 }
-header{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    justify-content:center;
-    padding:10px;
-    background:white;
-    box-shadow:0 2px 8px rgba(0,0,0,0.08);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e; --bg2: #282828; --bg3: #2e2e2e;
+    --text: #f0f0f0; --text2: #aaa; --text3: #666;
+    --border: rgba(255,255,255,0.09); --border2: rgba(255,255,255,0.18);
+    --info-bg: #0c2a42; --info-text: #85b7eb; --info-border: #185fa5;
+    --danger-bg: #2e1212; --danger-text: #f09595; --danger-border: #a32d2d;
+    --success-bg: #0a3326; --success: #1D9E75;
+    --warn-bg: #3a2800; --warn: #EF9F27;
+  }
 }
-button,label,select,input{
-    padding:8px 12px;
-    border:none;
-    border-radius:6px;
-    background:#2563eb;
-    color:white;
-    cursor:pointer;
-    font-size: 14px;
-}
-input[type="text"]{
-    background:white;
-    color:black;
-    min-width: 150px;
-}
-#fileInput{display:none;}
-#viewer{height:calc(100vh - 100px);}
-#progressBarContainer{height:4px;background:#ddd;}
-#progressBar{height:100%;width:0;background:#2563eb;transition:.2s;}
-#pageInfo{font-weight:600; align-self: center;}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
 
-.panel{
-    position:fixed;
-    top:0;
-    left:-350px;
-    width:320px;
-    height:100%;
-    background:white;
-    box-shadow:0 0 20px rgba(0,0,0,0.3);
-    transition:left .3s;
-    z-index:1000;
-    display:flex;
-    flex-direction:column;
-}
-.panel.open{left:0;}
-.panelHeader{
-    padding:12px;
-    background:#2563eb;
-    color:white;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-.panelContent{
-    flex:1;
-    overflow:auto;
-    padding:10px;
-}
-.item{
-    padding:6px;
-    border-radius:6px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-.item span{
-    cursor:pointer;
-}
-.item:hover{background:#f0f0f0;}
+/* ── header ── */
+header { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 0.85rem 1.5rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; gap: 12px; }
+.logo { font-size: 17px; font-weight: 500; letter-spacing: -0.3px; white-space: nowrap; }
+.logo span { color: var(--text2); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.hdr-actions { display: flex; align-items: center; gap: 8px; }
+.btn { font-size: 12px; padding: 6px 13px; border-radius: var(--radius-md); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); cursor: pointer; white-space: nowrap; }
+.btn:hover { background: var(--bg2); }
+.btn-primary { background: var(--info-bg); color: var(--info-text); border-color: var(--info-border); }
+.btn-primary:hover { opacity: 0.85; }
+.save-flash { font-size: 12px; color: var(--success); opacity: 0; transition: opacity 0.3s; }
 
-#searchResults{
-    position:fixed;
-    right:10px;
-    top:120px;
-    width:350px;
-    max-height:60vh;
-    overflow:auto;
-    background:white;
-    border-radius:12px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.3);
-    padding:10px;
-    display:none;
-    z-index:2000;
-}
-.searchHeader{
-    display:flex;
-    justify-content:space-between;
-    font-weight:bold;
-    margin-bottom:10px;
-}
-.resultItem{
-    padding:6px;
-    border-radius:6px;
-    cursor:pointer;
-}
-.resultItem:hover{background:#f0f0f0;}
+/* ── add-book panel ── */
+.add-panel { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 1rem 1.5rem; display: none; }
+.add-panel.open { display: block; }
+.add-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+@media(max-width:640px){ .add-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:420px){ .add-grid { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; }
+.field input, .field select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius-md); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); outline: none; width: 100%; }
+.field input:focus, .field select:focus { border-color: var(--info-border); }
+.new-cat-row { margin-top: 8px; display: none; }
+.new-cat-row.open { display: flex; gap: 10px; align-items: center; }
+.new-cat-row input { font-size: 13px; padding: 6px 10px; border-radius: var(--radius-md); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); outline: none; flex: 1; max-width: 280px; }
+.add-err { font-size: 12px; color: var(--danger-text); margin-top: 6px; display: none; }
 
-#popup{
-    position:fixed;
-    bottom:20px;
-    left:50%;
-    transform:translateX(-50%);
-    background:white;
-    padding:15px;
-    border-radius:12px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.3);
-    display:none;
-    max-width:500px;
-    z-index: 3000;
-}
+/* ── main container ── */
+.container { max-width: 880px; margin: 0 auto; padding: 1.25rem 1rem 4rem; }
 
-.darkUI{
-    background:#111;
-    color:#eee;
-}
-.darkUI header{background:#1c1c1c;}
-.darkUI .panel{background:#1c1c1c;color:#eee;}
-.darkUI .item:hover,
-.darkUI .resultItem:hover{background:#333;}
-.darkUI #searchResults{background:#1c1c1c;color:#eee;}
+/* ── stats ── */
+.stats-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.1rem; }
+@media(max-width:480px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+.stat-card { background: var(--bg); border-radius: var(--radius-md); padding: 0.7rem 1rem; border: 0.5px solid var(--border); }
+.stat-label { font-size: 11px; color: var(--text2); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
+.stat-val { font-size: 22px; font-weight: 500; }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    header { padding: 8px; gap: 6px; }
-    button, label, select, input { padding: 6px 10px; font-size: 13px; }
-    #searchResults { width: calc(100% - 20px); right: 10px; top: 100px; }
-    .panel { width: 100%; left: -100%; }
-}
+/* ── progress ── */
+.progress-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; display: flex; margin-bottom: 6px; }
+.pb-read { background: var(--success); transition: width 0.3s; }
+.pb-reading { background: var(--warn); transition: width 0.3s; }
+.legend { display: flex; gap: 14px; margin-bottom: 1.1rem; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.dot-read { background: var(--success); }
+.dot-reading { background: var(--warn); }
+.dot-unread { background: var(--border2); }
+
+/* ── controls ── */
+.controls { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.1rem; align-items: center; }
+.search-wrap { flex: 1; min-width: 180px; }
+.search-wrap input { width: 100%; font-size: 13px; padding: 6px 11px; border-radius: var(--radius-md); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); outline: none; }
+.search-wrap input:focus { border-color: var(--info-border); }
+.filter-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
+.cat-btn { font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; white-space: nowrap; }
+.cat-btn:hover { background: var(--bg2); }
+.cat-btn.active { background: var(--info-bg); color: var(--info-text); border-color: var(--info-border); }
+
+/* ── category sections ── */
+.category-section { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 9px; }
+.cat-header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; background: var(--bg2); cursor: pointer; user-select: none; gap: 8px; }
+.cat-header:hover { background: var(--bg3); }
+.cat-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; }
+.cat-title-input { font-size: 13px; font-weight: 500; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--info-border); background: var(--bg); color: var(--text); outline: none; flex: 1; min-width: 80px; max-width: 220px; }
+.cat-meta { font-size: 12px; color: var(--text3); display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.cat-edit-btn { font-size: 11px; padding: 2px 7px; border-radius: 4px; border: 0.5px solid var(--border2); background: transparent; color: var(--text3); cursor: pointer; }
+.cat-edit-btn:hover { color: var(--info-text); border-color: var(--info-border); }
+.cat-del-btn { font-size: 11px; padding: 2px 7px; border-radius: 4px; border: 0.5px solid var(--border2); background: transparent; color: var(--text3); cursor: pointer; }
+.cat-del-btn:hover { color: var(--danger-text); border-color: var(--danger-border); }
+.chevron { font-size: 9px; color: var(--text3); transition: transform 0.2s; display: inline-block; }
+.chevron.open { transform: rotate(90deg); }
+
+/* ── book rows ── */
+.book-item { display: flex; align-items: center; gap: 8px; padding: 0.42rem 1rem; border-top: 0.5px solid var(--border); }
+.book-num { font-size: 11px; color: var(--text3); min-width: 20px; text-align: right; flex-shrink: 0; }
+.book-info { flex: 1; min-width: 0; }
+.book-title { font-size: 13px; color: var(--text); line-height: 1.4; }
+.book-author { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.book-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.status-btn { width: 27px; height: 27px; border-radius: 50%; border: 1.5px solid var(--border2); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.12s; flex-shrink: 0; }
+.status-btn:hover { border-color: var(--text2); }
+.status-btn.read { border-color: var(--success); background: var(--success-bg); color: var(--success); }
+.status-btn.reading { border-color: var(--warn); background: var(--warn-bg); color: var(--warn); }
+.del-btn { width: 22px; height: 22px; border-radius: 50%; border: 0.5px solid transparent; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--text3); flex-shrink: 0; line-height: 1; transition: all 0.12s; }
+.del-btn:hover { color: var(--danger-text); border-color: var(--danger-border); background: var(--danger-bg); }
+
+/* ── confirm overlay ── */
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 500; display: none; align-items: center; justify-content: center; }
+.confirm-overlay.open { display: flex; }
+.confirm-box { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border2); padding: 1.5rem; max-width: 340px; width: 90%; }
+.confirm-title { font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+.confirm-msg { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
 </style>
 </head>
 <body>
 
 <header>
-<label for="fileInput">📚 Load EPUB</label>
-<input type="file" id="fileInput" accept=".epub">
-
-<button id="prev">◀ Prev</button>
-<button id="next">Next ▶</button>
-
-<button id="tocBtn">📑 TOC</button>
-
-<button id="addBookmarkBtn">🔖 Add</button>
-<button id="bookmarkPanelBtn">🔖 List</button>
-
-<button id="dictionaryBtn">📖 Dictionary</button>
-
-<button id="fontPlus">A+</button>
-<button id="fontMinus">A-</button>
-
-<select id="themeSelect">
-<option value="light">☀️ Light</option>
-<option value="dark">🌙 Dark</option>
-<option value="sepia">📜 Sepia</option>
-</select>
-
-<input type="text" id="searchInput" placeholder="🔍 Search...">
-<button id="searchBtn">Go</button>
-
-<span id="pageInfo"></span>
+  <div class="logo">SwanSong™ <span>Reading Tracker</span></div>
+  <div class="hdr-actions">
+    <button class="btn btn-primary" onclick="toggleAddPanel()">+ Add book</button>
+    <button class="btn" onclick="saveProgress()">Save</button>
+    <span class="save-flash" id="saveFlash">Saved ✓</span>
+  </div>
 </header>
 
-<div id="progressBarContainer"><div id="progressBar"></div></div>
-<div id="viewer"></div>
+<!-- Add book panel -->
+<div class="add-panel" id="addPanel">
+  <div class="add-grid">
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="newTitle" placeholder="Book title" />
+    </div>
+    <div class="field">
+      <label>Author</label>
+      <input type="text" id="newAuthor" placeholder="Author (optional)" />
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <select id="newCat" onchange="onCatSelectChange()"></select>
+    </div>
+    <div style="display:flex;gap:6px;padding-bottom:1px;">
+      <button class="btn btn-primary" onclick="addBook()">Add</button>
+      <button class="btn" onclick="toggleAddPanel()">Cancel</button>
+    </div>
+  </div>
+  <div class="new-cat-row" id="newCatRow">
+    <input type="text" id="newCatName" placeholder="New category name…" />
+  </div>
+  <div class="add-err" id="addErr"></div>
+</div>
 
-<div id="tocPanel" class="panel">
-<div class="panelHeader">
-<span>📑 Table of Contents</span>
-<button onclick="togglePanel('tocPanel')">✕</button>
-</div>
-<div id="tocContent" class="panelContent"></div>
-</div>
-
-<div id="bookmarkPanel" class="panel">
-<div class="panelHeader">
-<span>🔖 Bookmarks</span>
-<button onclick="togglePanel('bookmarkPanel')">✕</button>
-</div>
-<div id="bookmarkContent" class="panelContent"></div>
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">Confirm</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-actions">
+      <button class="btn" onclick="closeConfirm()">Cancel</button>
+      <button class="btn" id="confirmOkBtn" style="color:var(--danger-text);border-color:var(--danger-border);" onclick="confirmOk()">Delete</button>
+    </div>
+  </div>
 </div>
 
-<div id="searchResults"></div>
-<div id="popup"></div>
+<div class="container">
+  <div class="stats-row" id="statsRow"></div>
+  <div class="progress-bar" id="progressBar"></div>
+  <div class="legend">
+    <span class="legend-item"><span class="dot dot-read"></span>Read</span>
+    <span class="legend-item"><span class="dot dot-reading"></span>Reading</span>
+    <span class="legend-item"><span class="dot dot-unread"></span>Unread</span>
+    <span style="font-size:12px;color:var(--text3);">— click circle to cycle · × to delete</span>
+  </div>
+  <div class="controls">
+    <div class="search-wrap"><input type="text" id="searchBox" placeholder="Search by title or author…" oninput="renderAll()" /></div>
+    <div class="filter-wrap" id="filterWrap"></div>
+  </div>
+  <div id="bookList"></div>
+</div>
 
 <script>
-let book, rendition;
-let currentFont = 100;
-let selectedWord = "";
-let currentBookKey = "";
+// ── DEFAULT DATA ──────────────────────────────────────────────────────────────
+const DEFAULT_CATS = [
+  { id:"time", label:"Time", books:[
+    {t:"A Brief History of the Philosophy of Time",a:"Adrian Bardon"},
+    {t:"A Brief History of Time",a:"Stephen Hawking"},
+    {t:"The Order of Time",a:"Carlo Rovelli"},
+    {t:"From Eternity to Here",a:"Sean Carroll"},
+    {t:"Arrow of Time",a:"Huw Price"},
+    {t:"The End of Time",a:"Julian Barbour"},
+    {t:"Time Reborn",a:"Lee Smolin"},
+    {t:"Timaeus",a:"Plato"},
+    {t:"Physics",a:"Aristotle"},
+    {t:"Confessions",a:"St. Augustine"},
+    {t:"A Very Short Introduction: Time",a:""},
+    {t:"A Very Short Introduction: History of Time",a:""},
+    {t:"The Physical Basis for the Direction of Time",a:"Zeh"},
+    {t:"On Time",a:"Kant"},
+    {t:"A World Without Time",a:"Paul Yourgrau"},
+    {t:"The Philosophy of Time",a:"Robin Le Poidevin & Murry MacBeath"},
+    {t:"Logic and Philosophy of Time",a:""}
+  ]},
+  { id:"qm", label:"Quantum Mechanics", books:[
+    {t:"What Is Real?",a:"Adam Becker"},
+    {t:"Quantum Enigma",a:"Bruce Rosenblum & Fred Kuttner"},
+    {t:"Quantum: Einstein, Bohr, and the Great Debate",a:"Manjit Kumar"},
+    {t:"QED: The Strange Theory of Light and Matter",a:"Richard P. Feynman"},
+    {t:"Wholeness and the Implicate Order",a:"David Bohm"},
+    {t:"Quantum Reality",a:"Nick Herbert"},
+    {t:"In Search of Schrödinger's Cat",a:"John Gribbin"},
+    {t:"Quantum Mechanics and the Universe",a:"Roger Penrose & Stuart Hameroff"},
+    {t:"Quantum Reality: A Game of Theories",a:"Jim Baggott"},
+    {t:"The Grand Design",a:"Hawking & Mlodinow"},
+    {t:"Very Short Introductions: Quantum Mechanics",a:""},
+    {t:"Quantum Mechanics and Experience",a:"David Z. Albert"},
+    {t:"The God Particle",a:"Leon M. Lederman"},
+    {t:"The Quantum World",a:"New Scientist"},
+    {t:"The Particle at the End of Universe",a:"Sean Carroll"},
+    {t:"Quantum Reality: Theory and Practice",a:"Jonathan Allday"},
+    {t:"Beyond the God Particle",a:"Lederman & Hill"},
+    {t:"Quantum Nonlocality and Reality",a:"Mary Bell & Shan Gao"},
+    {t:"Quantum Mechanics and Path Integrals",a:"Feynman & Hibbs"},
+    {t:"The Elegant Universe",a:"Brian Greene"}
+  ]},
+  { id:"phys", label:"Physics / Relativity", books:[
+    {t:"Relativity",a:"Einstein"},
+    {t:"Gravitation",a:"Wheeler"},
+    {t:"Six Easy Pieces",a:"Richard Feynman"},
+    {t:"Black Holes and Time Warps",a:"Kip Thorne"},
+    {t:"Spacetime and Geometry",a:"Sean Carroll"}
+  ]},
+  { id:"math", label:"Mathematics", books:[
+    {t:"Is God a Mathematician?",a:"Mario Livio"},
+    {t:"Introduction to Mathematical Philosophy",a:"Bertrand Russell"},
+    {t:"Philosophy of Mathematics",a:"Øystein Linnebo"},
+    {t:"Philosophy of Mathematics",a:"Leon Horsten"},
+    {t:"Philosophy of Mathematics",a:"Stewart Shapiro"},
+    {t:"Our Mathematical Universe",a:"Max Tegmark"}
+  ]},
+  { id:"philsci", label:"Philosophy & Science of Mind", books:[
+    {t:"The Science Delusion",a:"Rupert Sheldrake"},
+    {t:"Meditations on First Philosophy",a:"Descartes"},
+    {t:"Very Short Introductions: Philosophy of Science",a:""},
+    {t:"Very Short Introductions: Philosophy",a:""},
+    {t:"Concept of Mind in Indian Philosophy",a:"Umesh Mishra et al."},
+    {t:"Understanding Human Minds and Their Limits",a:"David Cycleback"},
+    {t:"Critique of Pure Reason (abridged)",a:"Kant"}
+  ]},
+  { id:"reality", label:"Reality (Western / Scientific)", books:[
+    {t:"The Case Against Reality",a:"Donald D. Hoffman"},
+    {t:"Reality+",a:"David J. Chalmers"},
+    {t:"The Fabric of Reality",a:"David Deutsch"},
+    {t:"The Holographic Universe",a:"Michael Talbot"},
+    {t:"The Simulation Hypothesis",a:"Rizwan Virk"},
+    {t:"The Fabric of the Cosmos",a:"Brian Greene"},
+    {t:"Reality Is Not What It Seems",a:"Carlo Rovelli"},
+    {t:"The Structure of Scientific Revolutions",a:"Thomas Kuhn"},
+    {t:"A Very Short Introduction to Reality",a:""},
+    {t:"The Singular Universe and the Reality of Time",a:"Lee Smolin"},
+    {t:"The Hidden Reality",a:"Brian Greene"},
+    {t:"The End of Science",a:"John Horgan"},
+    {t:"The Fabric of Reality",a:"David Deutsch"},
+    {t:"The Tao of Physics",a:"Fritjof Capra"}
+  ]},
+  { id:"consci", label:"Consciousness (Western / Scientific)", books:[
+    {t:"The Self-Aware Universe",a:"Amit Goswami"},
+    {t:"The Emperor's New Mind",a:"Roger Penrose"},
+    {t:"Biocentrism",a:"Robert Lanza"},
+    {t:"The Conscious Mind",a:"David Chalmers"},
+    {t:"Butterflies Are Free to Fly",a:""},
+    {t:"The User Illusion",a:"Tor Nørretranders"},
+    {t:"Gödel, Escher, Bach",a:"Douglas Hofstadter"},
+    {t:"Mind and Cosmos",a:"Thomas Nagel"},
+    {t:"The Origin of Consciousness",a:"Julian Jaynes"},
+    {t:"Very Short Introductions: Consciousness",a:""},
+    {t:"Quantum Healing",a:"Deepak Chopra"},
+    {t:"The Science Delusion",a:"Rupert Sheldrake"},
+    {t:"The Conscious Universe",a:"Dean Radin"},
+    {t:"Biology of Belief",a:"Bruce Lipton"},
+    {t:"The Quest for a Universal Theory of Intelligence",a:"Christian Hugo Hoffmann"},
+    {t:"Consciousness Explained",a:"Daniel C. Dennett"},
+    {t:"What Is Life",a:"Erwin Schrödinger"},
+    {t:"The Physics of Consciousness",a:"Iwan Antic"},
+    {t:"A Thousand Brains",a:"Jeffery A. Martin"},
+    {t:"End of Science",a:"John Horgan"},
+    {t:"Consciousness and the Universe",a:"Roger Penrose"},
+    {t:"The Conscious Mind in Search of Fundamental Theory",a:"David Chalmers"},
+    {t:"The Science of Consciousness",a:"Trevor A. Harley"},
+    {t:"Being You",a:"Anil Seth"},
+    {t:"The Feeling of What Happens",a:"Antonio Damasio"}
+  ]},
+  { id:"reinc", label:"Reincarnation", books:[
+    {t:"Born Again",a:"Dr. Walter Semkiw"},
+    {t:"Many Lives, Many Masters",a:"Brian Weiss"},
+    {t:"Vedanta Philosophy: Five Lectures on Reincarnation",a:"Swami Abhedananda"},
+    {t:"Children Who Remember Previous Lives",a:"Ian Stevenson"}
+  ]},
+  { id:"medit", label:"Meditation", books:[
+    {t:"Meditations",a:"Marcus Aurelius"},
+    {t:"A Million Thoughts",a:"Om Swami"},
+    {t:"Zen Mind, Beginner's Mind",a:"Shunryu Suzuki"},
+    {t:"Art of Living: Vipassana Meditation",a:"William Hart"},
+    {t:"Mindfulness in Plain English",a:"Henepola Gunaratana"},
+    {t:"Beyond Mindfulness in Plain English",a:"Henepola Gunaratana"},
+    {t:"Essentials of Insight Meditation Practice",a:"Sujiva"},
+    {t:"Fundamentals of Vipassana Meditation",a:"Mahasi Sayadaw"},
+    {t:"Concentration and Meditation",a:"Swami Sivananda"},
+    {t:"Osho Dhyan Yog",a:"Osho"},
+    {t:"Raja Yoga",a:"Swami Vivekananda"}
+  ]},
+  { id:"spirit", label:"Spiritualism", books:[
+    {t:"Ashtavakra Gita",a:""},
+    {t:"God Speaks",a:"Meher Baba"},
+    {t:"Tao Te Ching",a:"Laozi"},
+    {t:"The Three Waves of Volunteers and the New Earth",a:"Dolores Cannon"},
+    {t:"Keepers of the Garden",a:"Dolores Cannon"},
+    {t:"They Walked with Jesus",a:"Dolores Cannon"},
+    {t:"The Everything and the Nothing",a:"Meher Baba"},
+    {t:"Listen Humanity",a:"Meher Baba"},
+    {t:"The Path of Love",a:"Meher Baba"},
+    {t:"Shore to Shoreless",a:"Dr. J. S. Rathore"},
+    {t:"Karma",a:"Sadhguru"},
+    {t:"Inner Engineering",a:"Sadhguru"},
+    {t:"I Am That",a:"Nisargadatta Maharaj"},
+    {t:"Who Am I?",a:"Ramana Maharishi"},
+    {t:"The Ancient Science of Mantras",a:"Om Swami"},
+    {t:"Selection from Works of Sri Aurobindo and the Mother",a:"Sri Aurobindo"},
+    {t:"Awakening the Mind: The Essential Krishnamurti",a:"J. Krishnamurti"},
+    {t:"Life and Death in One Breath",a:"Sadhguru"},
+    {t:"A Search in Secret India",a:"Paul Brunton"}
+  ]},
+  { id:"shadd", label:"Shad Darshana", books:[
+    {t:"Light on the Yoga Sūtras of Patañjali",a:"B. K. S. Iyengar"},
+    {t:"Brahma Sutra Bhasya by Sankaracarya",a:"Swami Gambhirananda"},
+    {t:"Vaisesika Sutra of Kanada",a:"Debasish Chakrabarty"},
+    {t:"The Nyaya Sutras of Gautama",a:"Satis Chandra Vidyabhusana"},
+    {t:"The Sankhya Aphorisms of Kapila",a:"James R. Ballantyne"},
+    {t:"Vedant Darshan (Brahma Sutra)",a:"Harikrishna Das Goyandaka"},
+    {t:"Vivekachudamani of Sri Sankaracharya",a:"Swami Madhavananda"}
+  ]},
+  { id:"kash", label:"Kashmir Shaivism", books:[
+    {t:"Kashmir Shaivism: The Secret Supreme",a:"Swami Lakshmanjoo"},
+    {t:"Vijnana Bhairava: The Practice of Centring Awareness",a:"Swami Lakshmanjoo"},
+    {t:"Sri Tantraloka of Abhinavagupta",a:"Giriratna Mishra"},
+    {t:"The Tantrasāra of Abhinavagupta",a:"H. N. Chakravarty"},
+    {t:"Light on Tantra in Kashmir Shaivism",a:"Swami Lakshmanjoo"},
+    {t:"Parātrīśikā-vivaraṇa",a:"Abhinavagupta / Jaidev Singh"},
+    {t:"Shiva Sutras: The Supreme Awakening",a:"Swami Lakshmanjoo"},
+    {t:"Malinivijayottara Tantram",a:"Pandit Madhusudan Kaul"},
+    {t:"The Recognition Sutras",a:"Ksemaraja"},
+    {t:"The Touch of Śakti",a:"Ernst Fürlinger"},
+    {t:"Secret of the Siddhas",a:"Swami Muktananda"},
+    {t:"Consciousness is Everything",a:"Swami Shankarananda"},
+    {t:"Philosophical & Practical Aspects of Kashmir Shaivism",a:"Moti Lal Pandit"}
+  ]},
+  { id:"tibet", label:"Tibetan / Buddhist", books:[
+    {t:"Graceful Exits",a:"Sushila Blackman"},
+    {t:"Tibetan Book of the Dead (Bardo Thodol)",a:"Karma Lingpa / Lama Kazi Dawa Samdup"},
+    {t:"Tibetan Book of the Dead",a:"Graham Coleman"},
+    {t:"The Tibetan Book of Living and Dying",a:"Sogyal Rinpoche"},
+    {t:"Tibetan Book of Great Liberation",a:"Padma Sambhava / C. G. Jung"},
+    {t:"The Heart Sutra and its Commentaries",a:"Thich Nhat Hanh"},
+    {t:"Breath by Breath",a:"Larry Rosenberg"},
+    {t:"Mastering the Core Teachings of the Buddha",a:"Daniel M. Ingram"}
+  ]},
+  { id:"tantra", label:"Tantra", books:[
+    {t:"Aghora Trilogy 1: At the Left Hand of God",a:"Dr. Robert Svoboda"},
+    {t:"Aghora Trilogy 2: Kundalini",a:"Dr. Robert Svoboda"},
+    {t:"Aghora Trilogy 3: The Law of Karma",a:"Dr. Robert Svoboda"},
+    {t:"Tantra: The Path of Ecstasy",a:"Georg Feuerstein"}
+  ]},
+  { id:"civ", label:"Civilization", books:[
+    {t:"Sapiens",a:"Yuval Noah Harari"},
+    {t:"Who We Are and How We Got Here",a:"David Reich"},
+    {t:"Man the Unknown",a:"Dr. Alexis Carrel"},
+    {t:"Guns, Germs, and Steel",a:"Jared Diamond"},
+    {t:"Mysteries from Forgotten Worlds",a:"Charles Berlitz"},
+    {t:"The Mystery of Atlantis",a:"Charles Berlitz"},
+    {t:"Chariots of the Gods?",a:"Erich von Däniken"},
+    {t:"The Gold of the Gods",a:"Erich von Däniken"},
+    {t:"The Return of the Gods",a:"Erich von Däniken"},
+    {t:"History Is Wrong?",a:"Erich von Däniken"},
+    {t:"Signs of the Gods?",a:"Erich von Däniken"},
+    {t:"The Gods from Outer Space",a:"Erich von Däniken"},
+    {t:"The Lost Teachings of Atlantis",a:"Jon Peniel"}
+  ]},
+  { id:"motiv", label:"Motivational", books:[
+    {t:"The Seven Habits of Highly Effective People",a:"Stephen R. Covey"},
+    {t:"Who Will Cry When You Die?",a:"Robin Sharma"},
+    {t:"The Monk Who Sold His Ferrari",a:"Robin Sharma"},
+    {t:"The Seven Spiritual Laws of Success",a:"Deepak Chopra"},
+    {t:"Atomic Habits",a:"James Clear"},
+    {t:"Man's Search for Meaning",a:"Viktor Frankl"}
+  ]},
+  { id:"auto", label:"Autobiographies", books:[
+    {t:"Autobiography of a Yogi",a:"Paramahansa Yogananda"},
+    {t:"If Truth Be Told: A Monk's Memoir",a:"Om Swami"},
+    {t:"Apprenticed to a Himalayan Master",a:"Sri M"},
+    {t:"The Journey Continues",a:"Sri M"},
+    {t:"An Autobiography",a:"Jawaharlal Nehru"}
+  ]},
+  { id:"biog", label:"Biographies of Spiritual Masters", books:[
+    {t:"Toro, Kara Toro (6 volumes)",a:"Narendra Kohli"},
+    {t:"Gospel of Sri Ramakrishna (2 volumes)",a:"Swami Nikhilananda"},
+    {t:"The Eternal Companion: Brahmananda",a:"Swami Prabhavananda"},
+    {t:"Lord Meher",a:"Bhau Kalchuri"},
+    {t:"Shri Sai Satcharitra",a:"Govind Raghunath Dabholkar"}
+  ]},
+  { id:"poetry", label:"Poetry", books:[
+    {t:"100 Love Sonnets",a:"Pablo Neruda"},
+    {t:"The Prophet",a:"Kahlil Gibran"},
+    {t:"The Love Poems of Rumi",a:"Deepak Chopra"},
+    {t:"Rashmirathi",a:"Ramdhari Singh Dinkar"},
+    {t:"Madhushala",a:"Harivansh Rai Bachchan"}
+  ]},
+  { id:"fict", label:"Fiction", books:[
+    {t:"The Immortals of Meluha",a:"Amish Tripathi"},
+    {t:"The Secret of the Nagas",a:"Amish Tripathi"},
+    {t:"The Oath of the Vayuputras",a:"Amish Tripathi"},
+    {t:"The Alchemist",a:"Paulo Coelho"},
+    {t:"The God of Small Things",a:"Arundhati Roy"},
+    {t:"Midnight's Children",a:"Salman Rushdie"},
+    {t:"Eleven Minutes",a:"Paulo Coelho"},
+    {t:"Love Story",a:"Erich Segal"},
+    {t:"By the River Piedra I Sat Down and Wept",a:"Paulo Coelho"}
+  ]},
+  { id:"lit", label:"Literature", books:[
+    {t:"The Complete Short Stories of Saki",a:"H. H. Munro"},
+    {t:"Sherlock Holmes Complete Collection",a:"Arthur Conan Doyle"},
+    {t:"Nancy Drew Mystery Stories (Books 1–4)",a:"Carolyn Keene"},
+    {t:"Gunaho Ka Devta",a:"Dharmveer Bharti"},
+    {t:"Mansarovar",a:"Premchand"},
+    {t:"Godan",a:"Premchand"},
+    {t:"Gabhan",a:"Premchand"},
+    {t:"Pratigya",a:"Premchand"},
+    {t:"Nirmala",a:"Premchand"},
+    {t:"Jaishankar Prasad ki Shreshtha Kahaniyan",a:"Jayshankar Prasad"},
+    {t:"Ramkavya",a:"Maithili Sharan Gupt"},
+    {t:"Saket",a:"Maithili Sharan Gupt"},
+    {t:"Anamika",a:"Suryakant Tripathi Nirala"},
+    {t:"Kukurmutta",a:"Suryakant Tripathi Nirala"}
+  ]},
+  { id:"scifi", label:"Science Fiction", books:[
+    {t:"The Foundation Trilogy",a:"Isaac Asimov"},
+    {t:"I, Robot",a:"Isaac Asimov"},
+    {t:"The Complete Robot",a:"Isaac Asimov"}
+  ]}
+];
 
-// ---------- THEME HANDLING ----------
-let currentTheme = localStorage.getItem("epub-theme") || "light";
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let cats = [];
+let status = {};
+let openCats = {};
+let activeFilter = 'all';
+let confirmCallback = null;
 
-function registerThemes() {
-    rendition.themes.register("light",  {"html, body": {background: "#fff", color: "#000"}});
-    rendition.themes.register("dark",   {"html, body": {background: "#111", color: "#eee"}});
-    rendition.themes.register("sepia",  {"html, body": {background: "#f4ecd8", color: "#5b4636"}});
+// ── PERSISTENCE ───────────────────────────────────────────────────────────────
+const SK = 'swansong_v3';
+
+function persist() {
+  try { localStorage.setItem(SK, JSON.stringify({ cats, status })); } catch(e){}
 }
 
-function setTheme(theme) {
-    currentTheme = theme;
-    localStorage.setItem("epub-theme", theme);
-    document.body.classList.toggle("darkUI", theme === "dark");
-    document.getElementById("themeSelect").value = theme;
-    if (rendition) {
-        rendition.themes.select(theme);
-    }
-}
-
-function attachThemeHook() {
-    rendition.hooks.content.register((doc, data) => {
-        rendition.themes.select(currentTheme);
-    });
-}
-
-// ---------- LOAD EPUB ----------
-document.getElementById("fileInput").addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (rendition) { rendition.destroy(); }
-
-    book = ePub(file);
-    rendition = book.renderTo("viewer", { width: "100%", height: "100%" });
-
-    registerThemes();
-    attachThemeHook();
-    setTheme(currentTheme);
-
-    rendition.display();
-
-    buildTOC();
-    setupLocations();
-    enableSelection();
-
-    book.ready.then(() => {
-        const id = book.package.metadata.identifier || file.name;
-        currentBookKey = "epub-bookmarks-" + id;
-        updateBookmarkPanel();
-    });
-});
-
-// ---------- NAVIGATION ----------
-document.getElementById("prev").onclick = () => rendition && rendition.prev();
-document.getElementById("next").onclick = () => rendition && rendition.next();
-
-// ---------- FONT ----------
-document.getElementById("fontPlus").onclick = () => {
-    currentFont = Math.min(currentFont + 10, 200);
-    rendition.themes.fontSize(currentFont + "%");
-};
-document.getElementById("fontMinus").onclick = () => {
-    currentFont = Math.max(currentFont - 10, 80);
-    rendition.themes.fontSize(currentFont + "%");
-};
-
-// ---------- THEME SELECT ----------
-document.getElementById("themeSelect").onchange = e => setTheme(e.target.value);
-
-// ---------- PROGRESS ----------
-function setupLocations() {
-    book.ready.then(() => book.locations.generate(1600)).then(() => {
-        const total = book.locations.total;
-        rendition.on("relocated", loc => {
-            const current = book.locations.locationFromCfi(loc.start.cfi);
-            if (current && total) {
-                document.getElementById("pageInfo").textContent = `📄 ${current} / ${total}`;
-                document.getElementById("progressBar").style.width = ((current / total) * 100) + "%";
-            }
-        });
-    });
-}
-
-// ---------- TOC ----------
-function togglePanel(id) {
-    document.getElementById(id).classList.toggle("open");
-}
-document.getElementById("tocBtn").onclick = () => togglePanel("tocPanel");
-function buildTOC() {
-    book.loaded.navigation.then(nav => {
-        const toc = document.getElementById("tocContent");
-        toc.innerHTML = "";
-        nav.toc.forEach(ch => {
-            const div = document.createElement("div");
-            div.className = "item";
-            div.innerHTML = `<span>📖 ${ch.label}</span>`;
-            div.onclick = () => { rendition.display(ch.href); togglePanel("tocPanel"); };
-            toc.appendChild(div);
-        });
-    });
-}
-
-// ---------- SEARCH ----------
-document.getElementById("searchBtn").onclick = () => {
-    const q = document.getElementById("searchInput").value.trim();
-    if (!q) return;
-
-    const container = document.getElementById("searchResults");
-    container.innerHTML = `<div class="searchHeader">🔍 Results <button onclick="document.getElementById('searchResults').style.display='none'">✕</button></div><p>Searching...</p>`;
-    container.style.display = "block";
-
-    let results = [];
-    let spine = book.spine.spineItems;
-    let done = 0;
-
-    spine.forEach(item => {
-        item.load(book.load.bind(book)).then(() => {
-            try {
-                const doc = item.document;
-                const cfiBase = item.cfiBase;
-                const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
-                    acceptNode: (node) => {
-                        if (node.textContent.toLowerCase().includes(q.toLowerCase()))
-                            return NodeFilter.FILTER_ACCEPT;
-                        return NodeFilter.FILTER_SKIP;
-                    }
-                });
-                const firstTextNode = walker.nextNode();
-                if (firstTextNode) {
-                    const text = firstTextNode.textContent;
-                    const index = text.toLowerCase().indexOf(q.toLowerCase());
-                    if (index !== -1) {
-                        const range = doc.createRange();
-                        range.setStart(firstTextNode, index);
-                        range.setEnd(firstTextNode, index + q.length);
-                        if (typeof ePub.CFI !== 'undefined' && ePub.CFI.fromRange) {
-                            const preciseCfi = ePub.CFI.fromRange(range, cfiBase);
-                            const start = Math.max(0, index - 40);
-                            const excerpt = text.substring(start, index + 40);
-                            results.push({ cfi: preciseCfi, excerpt });
-                        } else {
-                            const excerpt = text.substring(Math.max(0, index - 40), index + 40);
-                            results.push({ cfi: cfiBase, excerpt });
-                        }
-                    }
-                }
-            } catch (err) { /* ignore */ }
-            item.unload();
-            done++;
-            if (done === spine.length) renderSearchResults(results);
-        });
-    });
-};
-
-function renderSearchResults(results) {
-    const container = document.getElementById("searchResults");
-    container.innerHTML = `<div class="searchHeader">🔍 Results <button onclick="document.getElementById('searchResults').style.display='none'">✕</button></div>`;
-    if (results.length === 0) {
-        container.innerHTML += "<p>😕 No results found.</p>";
-        return;
-    }
-    results.forEach(r => {
-        const div = document.createElement("div");
-        div.className = "resultItem";
-        div.textContent = "… " + r.excerpt + " …";
-        div.onclick = () => {
-            rendition.display(r.cfi);
-            container.style.display = "none";
-        };
-        container.appendChild(div);
-    });
-}
-
-// ---------- DICTIONARY ----------
-function enableSelection() {
-    rendition.on("selected", (cfiRange, contents) => {
-        selectedWord = contents.window.getSelection().toString().trim();
-    });
-}
-document.getElementById("dictionaryBtn").onclick = () => {
-    if (!selectedWord) { alert("👆 Select a word first, then tap Dictionary."); return; }
-    const popup = document.getElementById("popup");
-    popup.style.display = "block";
-    popup.innerHTML = "🔎 Loading definition...";
-    fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + selectedWord)
-        .then(r => r.json())
-        .then(data => {
-            if (data.title) { 
-                popup.innerHTML = `❌ No definition found for "<b>${selectedWord}</b>".<br><br><button onclick='document.getElementById("popup").style.display="none"'>Close</button>`; 
-                return; 
-            }
-            const entry = data[0];
-            const meaning = entry.meanings?.[0];
-            const definition = meaning?.definitions?.[0]?.definition || "No definition available.";
-            popup.innerHTML = `<b>📖 ${selectedWord}</b><br><br><i>${meaning?.partOfSpeech || ""}</i><br><br>${definition}<br><br><button onclick='document.getElementById("popup").style.display="none"'>Close</button>`;
-        })
-        .catch(() => {
-            popup.innerHTML = "⚠️ Network error. Check your connection.<br><br><button onclick='document.getElementById(\"popup\").style.display=\"none\"'>Close</button>";
-        });
-};
-
-// ---------- BOOKMARKS ----------
-document.getElementById("addBookmarkBtn").onclick = () => {
-    const loc = rendition.currentLocation();
-    if (!loc) return;
-    const cfi = loc.start.cfi;
-    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    if (!data.includes(cfi)) {
-        data.push(cfi);
-        localStorage.setItem(currentBookKey, JSON.stringify(data));
-        updateBookmarkPanel();
-        showPopup("✅ Bookmark added!");
+function load() {
+  try {
+    const raw = localStorage.getItem(SK);
+    if (raw) {
+      const d = JSON.parse(raw);
+      cats = d.cats || JSON.parse(JSON.stringify(DEFAULT_CATS));
+      status = d.status || {};
     } else {
-        showPopup("📌 Already bookmarked");
+      cats = JSON.parse(JSON.stringify(DEFAULT_CATS));
+      status = {};
     }
-};
-document.getElementById("bookmarkPanelBtn").onclick = () => {
-    togglePanel("bookmarkPanel");
-    updateBookmarkPanel();
-};
-function updateBookmarkPanel() {
-    const content = document.getElementById("bookmarkContent");
-    content.innerHTML = "";
-    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    if (data.length === 0) {
-        content.innerHTML = "<p>📭 No bookmarks yet.<br><br>Tap <b>🔖 Add</b> while reading to save your place.</p>";
-        return;
-    }
-    data.forEach((cfi, i) => {
-        const row = document.createElement("div");
-        row.className = "item";
-        row.innerHTML = `<span>🔖 Bookmark ${i + 1}</span><button onclick="deleteBookmark('${cfi}')">✕</button>`;
-        row.querySelector("span").onclick = () => { rendition.display(cfi); togglePanel("bookmarkPanel"); };
-        content.appendChild(row);
+  } catch(e) {
+    cats = JSON.parse(JSON.stringify(DEFAULT_CATS));
+    status = {};
+  }
+  cats.forEach(c => c.books.forEach((b,i) => {
+    if (status[c.id+'_'+i] === undefined) status[c.id+'_'+i] = 0;
+  }));
+}
+
+function saveProgress() {
+  persist();
+  const el = document.getElementById('saveFlash');
+  el.style.opacity = '1';
+  setTimeout(() => el.style.opacity = '0', 2000);
+}
+
+// ── ID GENERATOR ──────────────────────────────────────────────────────────────
+function genId() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+
+// ── ADD PANEL ─────────────────────────────────────────────────────────────────
+function toggleAddPanel() {
+  const p = document.getElementById('addPanel');
+  const open = p.classList.toggle('open');
+  if (open) { populateCatSelect(); document.getElementById('newTitle').focus(); }
+  document.getElementById('addErr').style.display = 'none';
+}
+
+function populateCatSelect() {
+  const sel = document.getElementById('newCat');
+  sel.innerHTML = '';
+  cats.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.label; sel.appendChild(o);
+  });
+  const divider = document.createElement('option'); divider.disabled = true; divider.textContent = '──────────'; sel.appendChild(divider);
+  const newOpt = document.createElement('option'); newOpt.value = '__new__'; newOpt.textContent = '+ New category…'; sel.appendChild(newOpt);
+}
+
+function onCatSelectChange() {
+  const val = document.getElementById('newCat').value;
+  const row = document.getElementById('newCatRow');
+  if (val === '__new__') { row.classList.add('open'); document.getElementById('newCatName').focus(); }
+  else { row.classList.remove('open'); }
+}
+
+function addBook() {
+  const title = document.getElementById('newTitle').value.trim();
+  const author = document.getElementById('newAuthor').value.trim();
+  let catId = document.getElementById('newCat').value;
+  const errEl = document.getElementById('addErr');
+
+  if (!title) { showErr('Please enter a book title.'); return; }
+
+  if (catId === '__new__') {
+    const newName = document.getElementById('newCatName').value.trim();
+    if (!newName) { showErr('Please enter a name for the new category.'); return; }
+    catId = genId();
+    cats.push({ id: catId, label: newName, books: [] });
+  }
+
+  const cat = cats.find(c => c.id === catId);
+  if (!cat) { showErr('Category not found.'); return; }
+
+  const idx = cat.books.length;
+  cat.books.push({ t: title, a: author });
+  status[catId+'_'+idx] = 0;
+
+  document.getElementById('newTitle').value = '';
+  document.getElementById('newAuthor').value = '';
+  document.getElementById('newCatName').value = '';
+  document.getElementById('newCatRow').classList.remove('open');
+  errEl.style.display = 'none';
+
+  persist();
+  populateCatSelect();
+  document.getElementById('newCat').value = catId;
+  openCats[catId] = true;
+  renderAll();
+  document.getElementById('newTitle').focus();
+}
+
+function showErr(msg) {
+  const e = document.getElementById('addErr');
+  e.textContent = msg; e.style.display = 'block';
+}
+
+// ── CONFIRM DIALOG ────────────────────────────────────────────────────────────
+function openConfirm(title, msg, cb) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  confirmCallback = cb;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  confirmCallback = null;
+}
+function confirmOk() {
+  if (confirmCallback) confirmCallback();
+  closeConfirm();
+}
+
+// ── DELETE BOOK ───────────────────────────────────────────────────────────────
+function deleteBook(catId, idx) {
+  const cat = cats.find(c => c.id === catId);
+  if (!cat) return;
+  const title = cat.books[idx].t;
+  openConfirm('Delete book?', `"${title}" will be permanently removed from your list.`, () => {
+    const newStatus = {};
+    cats.forEach(c => {
+      c.books.forEach((b, i) => {
+        if (c.id === catId && i === idx) return;
+        const newIdx = (c.id === catId && i > idx) ? i - 1 : i;
+        newStatus[c.id+'_'+newIdx] = status[c.id+'_'+i] || 0;
+      });
     });
-}
-function deleteBookmark(cfi) {
-    let data = JSON.parse(localStorage.getItem(currentBookKey) || "[]");
-    data = data.filter(b => b !== cfi);
-    localStorage.setItem(currentBookKey, JSON.stringify(data));
-    updateBookmarkPanel();
-}
-
-// ---------- POPUP HELPER ----------
-function showPopup(msg) {
-    const popup = document.getElementById("popup");
-    popup.innerHTML = msg + `<br><br><button onclick="document.getElementById('popup').style.display='none'">OK</button>`;
-    popup.style.display = "block";
-    setTimeout(() => { if(popup.style.display !== 'none') popup.style.display = 'none'; }, 3000);
-}
-
-// ── PWA: Service Worker Registration ─────────────────────────────
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('✅ SW registered:', reg.scope))
-      .catch(err => console.warn('⚠️ SW failed:', err));
+    cat.books.splice(idx, 1);
+    Object.keys(status).filter(k => k.startsWith(catId+'_')).forEach(k => delete status[k]);
+    Object.assign(status, Object.fromEntries(Object.entries(newStatus).filter(([k]) => k.startsWith(catId+'_'))));
+    cats.forEach(c => {
+      if (c.id === catId) return;
+      c.books.forEach((b,i) => { status[c.id+'_'+i] = newStatus[c.id+'_'+i] !== undefined ? newStatus[c.id+'_'+i] : (status[c.id+'_'+i] || 0); });
+    });
+    persist();
+    renderAll();
   });
 }
 
-// ── PWA: BeforeInstallPrompt (for better UX) ─────────────────────
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  console.log('💡 PWA install prompt available');
-});
+// ── DELETE CATEGORY ───────────────────────────────────────────────────────────
+function deleteCategory(catId) {
+  const cat = cats.find(c => c.id === catId);
+  if (!cat) return;
+  openConfirm('Delete category?', `"${cat.label}" and all ${cat.books.length} book(s) in it will be permanently removed.`, () => {
+    Object.keys(status).filter(k => k.startsWith(catId+'_')).forEach(k => delete status[k]);
+    cats = cats.filter(c => c.id !== catId);
+    persist();
+    if (activeFilter === catId) activeFilter = 'all';
+    renderAll();
+  });
+}
+
+// ── RENAME CATEGORY ───────────────────────────────────────────────────────────
+function startRename(catId) {
+  const titleEl = document.getElementById('cattitle_'+catId);
+  const editBtn = document.getElementById('catedit_'+catId);
+  if (!titleEl) return;
+  const cur = cats.find(c => c.id === catId);
+  if (!cur) return;
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.className = 'cat-title-input';
+  inp.value = cur.label;
+  inp.onclick = e => e.stopPropagation();
+  inp.onkeydown = e => {
+    if (e.key === 'Enter') finishRename(catId, inp.value);
+    if (e.key === 'Escape') renderAll();
+  };
+  titleEl.replaceWith(inp);
+  if (editBtn) { editBtn.textContent = 'Save'; editBtn.onclick = e => { e.stopPropagation(); finishRename(catId, inp.value); }; }
+  inp.focus(); inp.select();
+}
+
+function finishRename(catId, newName) {
+  const nm = newName.trim();
+  if (!nm) { renderAll(); return; }
+  const cat = cats.find(c => c.id === catId);
+  if (cat) cat.label = nm;
+  persist();
+  renderAll();
+}
+
+// ── STATUS CYCLE ──────────────────────────────────────────────────────────────
+function cycleStatus(catId, idx) {
+  const k = catId+'_'+idx;
+  status[k] = ((status[k] || 0) + 1) % 3;
+  persist();
+  renderAll();
+}
+
+// ── FILTER ────────────────────────────────────────────────────────────────────
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderAll();
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function getStats() {
+  let total=0, read=0, reading=0;
+  cats.forEach(c => c.books.forEach((b,i) => {
+    total++;
+    const s = status[c.id+'_'+i] || 0;
+    if (s===1) read++; if (s===2) reading++;
+  }));
+  return {total, read, reading, unread: total-read-reading};
+}
+
+// ── RENDER FILTER BUTTONS ─────────────────────────────────────────────────────
+function renderFilters() {
+  const fw = document.getElementById('filterWrap');
+  fw.innerHTML = '';
+  cats.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (activeFilter===c.id?' active':'');
+    btn.textContent = c.label;
+    btn.onclick = function(){ setFilter(c.id, this); };
+    fw.appendChild(btn);
+  });
+}
+
+// ── MAIN RENDER ───────────────────────────────────────────────────────────────
+function renderAll() {
+  // stats
+  const {total, read, reading, unread} = getStats();
+  const pR = total ? Math.round(read/total*100) : 0;
+  const pRi = total ? Math.round(reading/total*100) : 0;
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-val">${total}</div><div class="stat-sub">${cats.length} categories</div></div>
+    <div class="stat-card"><div class="stat-label">Read</div><div class="stat-val" style="color:var(--success)">${read}</div><div class="stat-sub">${pR}%</div></div>
+    <div class="stat-card"><div class="stat-label">Reading</div><div class="stat-val" style="color:var(--warn)">${reading}</div><div class="stat-sub">${pRi}%</div></div>
+    <div class="stat-card"><div class="stat-label">Unread</div><div class="stat-val" style="color:var(--text2)">${unread}</div><div class="stat-sub">${100-pR-pRi}%</div></div>`;
+  document.getElementById('progressBar').innerHTML =
+    `<div class="pb-read" style="width:${pR}%"></div><div class="pb-reading" style="width:${pRi}%"></div>`;
+
+  // filter buttons (All + per cat)
+  const fw = document.getElementById('filterWrap');
+  fw.innerHTML = '';
+  const allBtn = document.createElement('button');
+  allBtn.className = 'cat-btn' + (activeFilter==='all' ? ' active' : '');
+  allBtn.textContent = 'All';
+  allBtn.onclick = function(){ setFilter('all', this); };
+  fw.appendChild(allBtn);
+  
+  cats.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (activeFilter===c.id?' active':'');
+    btn.textContent = c.label;
+    btn.onclick = function(){ setFilter(c.id, this); };
+    fw.appendChild(btn);
+  });
+
+  // book list
+  const search = (document.getElementById('searchBox').value || '').toLowerCase();
+  const catsToShow = activeFilter==='all' ? cats : cats.filter(c => c.id===activeFilter);
+  let html = '';
+
+  catsToShow.forEach(cat => {
+    const filtered = cat.books.map((b,i) => ({b,i})).filter(({b}) =>
+      !search || b.t.toLowerCase().includes(search) || (b.a||'').toLowerCase().includes(search)
+    );
+    if (!filtered.length && search) return;
+    const rc = cat.books.filter((b,i) => (status[cat.id+'_'+i]||0)===1).length;
+    const rdc = cat.books.filter((b,i) => (status[cat.id+'_'+i]||0)===2).length;
+    const isOpen = openCats[cat.id] !== false;
+
+    html += `<div class="category-section">
+      <div class="cat-header" onclick="toggleCat('${cat.id}')">
+        <span class="cat-title" id="cattitle_${cat.id}">${esc(cat.label)}</span>
+        <div class="cat-meta">
+          ${rc>0?`<span class="dot dot-read"></span><span>${rc}</span>`:''}
+          ${rdc>0?`<span class="dot dot-reading"></span><span>${rdc}</span>`:''}
+          <span>${cat.books.length} books</span>
+          <button class="cat-edit-btn" id="catedit_${cat.id}" onclick="event.stopPropagation();startRename('${cat.id}')">rename</button>
+          <button class="cat-del-btn" onclick="event.stopPropagation();deleteCategory('${cat.id}')">delete</button>
+          <span class="chevron ${isOpen?'open':''}">▶</span>
+        </div>
+      </div>`;
+
+    if (isOpen) {
+      html += `<div>`;
+      (search ? filtered : cat.books.map((b,i)=>({b,i}))).forEach(({b,i}) => {
+        const s = status[cat.id+'_'+i] || 0;
+        const cls = s===1?'read':s===2?'reading':'';
+        const icon = s===1?'✓':s===2?'◐':'';
+        const tip = s===0?'Mark as read':s===1?'Mark as reading':'Mark as unread';
+        html += `<div class="book-item">
+          <span class="book-num">${i+1}</span>
+          <div class="book-info">
+            <div class="book-title">${esc(b.t)}</div>
+            ${b.a?`<div class="book-author">${esc(b.a)}</div>`:''}
+          </div>
+          <div class="book-actions">
+            <button class="status-btn ${cls}" onclick="cycleStatus('${cat.id}',${i})" title="${tip}">${icon}</button>
+            <button class="del-btn" onclick="deleteBook('${cat.id}',${i})" title="Remove book">×</button>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+
+  document.getElementById('bookList').innerHTML = html;
+}
+
+function toggleCat(id) {
+  openCats[id] = openCats[id]===false ? true : false;
+  renderAll();
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+load();
+renderAll();
+
+// ── Github Worker Registration Fix ──────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const basePath = window.location.pathname.endsWith('/') 
+      ? window.location.pathname 
+      : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+    
+    navigator.serviceWorker.register(basePath + 'sw.js')
+      .then(reg => console.log('✅ Service Worker registered'))
+      .catch(err => console.log('⚠️ SW registration failed', err));
+  });
+}
 </script>
 </body>
 </html>
