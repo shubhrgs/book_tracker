@@ -1,6 +1,6 @@
 {
-  "name": "SwanSong Reading Tracker",
-  "short_name": "SwanSong",
+  "name": "BookSwan",
+  "short_name": "BookSwan",
   "description": "Track your reading progress offline",
   "start_url": "./",
   "display": "standalone",
